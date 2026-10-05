@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>The English Library - Voice Recorder</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f8fa;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: #172033;
+    }
+
+    .recorder {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.10);
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #102a43;
+    }
+
+    .instructions {
+      color: #52606d;
+      margin-bottom: 22px;
+    }
+
+    button {
+      border: none;
+      border-radius: 9px;
+      padding: 12px 18px;
+      margin: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #startBtn {
+      background: #c62828;
+      color: white;
+    }
+
+    #stopBtn {
+      background: #263238;
+      color: white;
+    }
+
+    #tryAgainBtn {
+      background: #1565c0;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #timer {
+      font-size: 28px;
+      font-weight: bold;
+      margin: 18px 0 8px;
+    }
+
+    #status {
+      margin: 12px 0;
+      font-weight: bold;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 18px;
+    }
+
+    .privacy {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="recorder">
+
+  <h2>🎙️ Record Your Voice</h2>
+
+  <p class="instructions">
+    Speak for 30–45 seconds about your weekend plans.
+  </p>
+
+  <button id="startBtn">🔴 Start Recording</button>
+  <button id="stopBtn" disabled>⏹ Stop</button>
+
+  <div id="timer">00:00</div>
+
+  <p id="status">Ready to record.</p>
+
+  <audio id="audioPlayback" controls style="display:none;"></audio>
+
+  <br>
+
+  <button id="tryAgainBtn" style="display:none;">
+    🔄 Try Again
+  </button>
+
+  <p class="privacy">
+    🔒 Your recording stays on your device and is not submitted.
+  </p>
+
+</div>
+
+<script>
+
+let mediaRecorder;
+let audioChunks = [];
+let timerInterval;
+let seconds = 0;
+let stream;
+
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const tryAgainBtn = document.getElementById("tryAgainBtn");
+const audioPlayback = document.getElementById("audioPlayback");
+const statusText = document.getElementById("status");
+const timer = document.getElementById("timer");
+
+function updateTimer() {
+  seconds++;
+
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  timer.textContent =
+    String(minutes).padStart(2, "0") +
+    ":" +
+    String(secs).padStart(2, "0");
+}
+
+startBtn.addEventListener("click", async () => {
+
+  try {
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    audioChunks = [];
+    seconds = 0;
+    timer.textContent = "00:00";
+
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.addEventListener("dataavailable", event => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    });
+
+    mediaRecorder.addEventListener("stop", () => {
+
+      const audioBlob = new Blob(audioChunks, {
+        type: mediaRecorder.mimeType
+      });
+
+      const audioURL = URL.createObjectURL(audioBlob);
+
+      audioPlayback.src = audioURL;
+      audioPlayback.style.display = "block";
+      tryAgainBtn.style.display = "inline-block";
+
+      statusText.textContent =
+        "Great! Listen to your recording.";
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+    });
+
+    mediaRecorder.start();
+
+    timerInterval = setInterval(updateTimer, 1000);
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+
+    audioPlayback.style.display = "none";
+    tryAgainBtn.style.display = "none";
+
+    statusText.textContent = "🔴 Recording... Speak now!";
+
+  } catch (error) {
+
+    statusText.textContent =
+      "Microphone access was blocked. Please allow microphone access.";
+
+  }
+
+});
+
+stopBtn.addEventListener("click", () => {
+
+  if (mediaRecorder &&
+      mediaRecorder.state === "recording") {
+
+    mediaRecorder.stop();
+
+    clearInterval(timerInterval);
+
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+
+  }
+
+});
+
+tryAgainBtn.addEventListener("click", () => {
+
+  audioPlayback.pause();
+  audioPlayback.removeAttribute("src");
+  audioPlayback.load();
+
+  audioPlayback.style.display = "none";
+  tryAgainBtn.style.display = "none";
+
+  seconds = 0;
+  timer.textContent = "00:00";
+
+  statusText.textContent = "Ready to record.";
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+
+});
+
+</script>
+
+</body>
+</html>
